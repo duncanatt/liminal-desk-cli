@@ -1,0 +1,19 @@
+# Raw-input receiver for `python -m liminal_desk_cli --transport tcp`.
+# It does not implement the shop-floor fusion pipeline.
+[inputs.machine]
+type = "tcp_input"
+output = "machine_data"
+concurrency = { type = "thread" }
+channel = { type = "broadcast", capacity = 256 }
+parameters = { mode = "server", host = "127.0.0.1", port = 8080, reconnect = true, reconnect_interval_ms = 1000 }
+
+[inputs.sensor]
+type = "tcp_input"
+output = "sensor_data"
+concurrency = { type = "thread" }
+channel = { type = "broadcast", capacity = 256 }
+parameters = { mode = "server", host = "127.0.0.1", port = 8081, reconnect = true, reconnect_interval_ms = 1000 }
+
+[outputs.console]
+type = "console"
+inputs = ["machine_data", "sensor_data"]

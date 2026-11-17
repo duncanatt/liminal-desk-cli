@@ -1,10 +1,14 @@
-# Refactor verification — 16 November 2026
+# Verification history — 16 November 2026
+
+For current test commands and prerequisites, see [testing.md](testing.md).
+The results below are dated audit observations, not fresh measurements from
+17 November or guarantees for a running deployment.
 
 The missing `json` import in `transports/mqtt.py` was corrected after the first
 real-send failure. The original dry-run checks bypassed serialization and were
 insufficient to validate that path. A real-adapter regression now covers it.
 
-## Results
+## Initial MQTT refactor audit
 
 - Static undefined-name analysis (Ruff F821/F822/F823): passed across the package and tests.
 - Offline tests: 20 passing, including serialization, callbacks, subscription readiness, auth/TLS setup arguments, errors, launch paths, timing and batch scrolling.
@@ -14,7 +18,7 @@ insufficient to validate that path. A real-adapter regression now covers it.
 - The real curses module launch passed connect/subscription, two manual steps, scrolling to event 42, previous-batch view, retry, automatic playback, pause/resume and clean quit against the local test server.
 - Nothing was published to the configured/user broker. Existing input traces were not changed.
 
-## Rerun
+## Initial MQTT audit commands
 
 From the repository root, with the project's environment active:
 
@@ -32,4 +36,30 @@ The local MQTT fixture implements the packet subset used by the application;
 it is not a substitute for testing a production broker. Authentication and TLS
 configuration were checked with mocks, not an actual secured broker. There is
 no end-to-end Liminal processing validation in these tests. This audit tests
-the current MQTT/curses player; TCP/Textual remain unimplemented.
+the MQTT/curses player at the initial refactor checkpoint. Later TCP coverage is
+recorded below; Textual remains unimplemented.
+
+## TCP addition — 16 November 2026
+
+- 31 offline checks pass, including new framing, configuration, receipts, routing
+  and connection-menu checks. The normal suite lists 48 cases, skipping 17
+  opt-in networking cases by default.
+- The TCP integration checks passed for shared/separate endpoints, mixed MQTT/TCP,
+  MQTT through the manager, fragmented/coalesced replies, large frames, limits,
+  disconnect/reconnect, refused ports, global stop and pause/resume.
+- A full automatic TCP replay completed in 66.009 s, with observed maximum
+  scheduler lag 9.5 ms. All 2,680 received payloads matched their scheduled order,
+  values, topics/destinations and rewritten timestamps. Source JSON hashes match.
+- Four existing fast MQTT integration checks were rerun successfully; the original
+  66-second MQTT timing result above was not remeasured in this TCP audit.
+- Terminal smoke tests passed using the actual module launch over both MQTT and
+  TCP. The TCP smoke test forces a full terminal redraw to verify the final event
+  number rather than assuming incremental ANSI output contains complete lines.
+- The existing local Liminal binary received, parsed and forwarded all 36 machine
+  and 2,644 sensor payloads intact over TCP, through separate temporary inputs and
+  outputs. The fixture uses unique stage names and an explicit test log filter.
+  This is compatibility with that binary, not validation of production fusion.
+- MQTT reconnect now discards old queued session callbacks, preventing a stale
+  subscription confirmation from enabling a new replay prematurely.
+
+See [TCP instructions](tcp.md) for the framing contract, limits and rerun commands.

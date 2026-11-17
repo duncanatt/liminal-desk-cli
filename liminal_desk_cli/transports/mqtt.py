@@ -27,6 +27,11 @@ class Broker:
         self.close()
         self.subscribed.clear()
         self.received.clear()
+        # close() joins the old network loop: discard any queued callbacks from
+        # that session before using subscription readiness for a new connection.
+        self.notifications = queue.Queue(maxsize=2000)
+        self.log.clear()
+        self.dropped = 0
         if self.args.dry_run:
             self.connected = True
             self.state = 'Dry run: no network connection'

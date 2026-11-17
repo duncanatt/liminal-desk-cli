@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "liminal-desk-cli"
 version = "0.1.0"
-description = "A terminal-based MQTT trace player for Liminal"
+description = "A terminal-based MQTT/TCP trace player for Liminal"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["paho-mqtt>=2,<3"]

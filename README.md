@@ -1,208 +1,112 @@
-# Liminal terminal replay
+# Liminal Desk CLI
 
-`replay_traces.py` is a coordinated publisher and subscriber for the two version-1
-Desk trace files. It uses Python's built-in terminal UI on macOS/Linux and the
-Paho MQTT client. It does not modify the trace files or the Desk application.
+A terminal-based MQTT/TCP trace player for Liminal, with synchronized replay,
+interactive stepping and live message inspection.
 
-## Setup and launch
+## Setup
 
-In Terminal:
+Python 3.9 or newer on macOS/Linux. Run commands from the repository root.
+The application does not need to be installed.
+
+For a fresh checkout, create and activate a Python environment:
 
 ```sh
-cd /Users/duncan/Dropbox/Postdoc/Development/liminal-desk-cli
-python3 -m venv .venv-replay
-.venv-replay/bin/python -m pip install 'paho-mqtt>=2,<3'
-.venv-replay/bin/python replay_traces.py --host localhost
+cd liminal-desk-cli
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-Replace `localhost` with the host used by your Desk MQTT connection. The default
-port is 1883. The tool does not start a broker. Give the terminal at least 110
-columns and 34 rows to see the batch summary and subscription log together.
-In smaller windows, E opens a dedicated scrollable payload view.
-
-The default files are `machine_events.json` and `sensor_events.json` beside the
-script. Alternatively pass two paths, in that order:
+If you already use the existing `venv/`, activate it with
+`source venv/bin/activate` instead. Install the MQTT dependency if using MQTT:
 
 ```sh
-.venv-replay/bin/python replay_traces.py machine_events.json sensor_events.json \
-  --host localhost --port 1883
+python -m pip install 'paho-mqtt>=2,<3'
 ```
 
-Run without MQTT or external dependencies to explore the interface:
+TCP-only replay, offline validation and dry-run mode use the Python standard
+library and do not require Paho. The current interface uses curses, not Textual.
+
+## Launch
 
 ```sh
-python3 replay_traces.py --dry-run
+# MQTT: both streams use localhost:1883 by default.
+python -m liminal_desk_cli
+
+# TCP: machine input on 8080, sensor input on 8081.
+python -m liminal_desk_cli --transport tcp --host 127.0.0.1
+
+# Mixed: machine MQTT on 1883; sensor TCP on 9002.
+python -m liminal_desk_cli --sensor-transport tcp --sensor-port 9002
+
+# Inspect the interface without connecting or sending.
+python -m liminal_desk_cli --dry-run
+
+# Validate both input traces without a terminal or network.
+python -m liminal_desk_cli --check
 ```
 
-Validation without a terminal or network:
+Your broker or Liminal TCP server must already be running. The CLI does not
+start either. See [TCP setup](docs/tcp.md) and the
+[example Liminal TCP receiver](examples/shop_floor/liminal_tcp_inputs.toml).
+The receiver prints raw inputs; it does not implement shop-floor fusion.
+
+The default traces are in `examples/shop_floor/`. Supply your own in this order:
 
 ```sh
-python3 replay_traces.py --check
+python -m liminal_desk_cli path/to/machine.json path/to/sensor.json --host localhost
 ```
 
 ## Controls
 
 | Key | Action |
 |---|---|
-| B | Set broker host, port, and comma-separated subscription filters |
-| C | Connect/disconnect; in dry run, enable/disable the simulated connection |
-| L | Load and validate both files by path; Enter retains the current path |
+| C | Connect/disconnect both streams |
+| B | Edit per-stream MQTT/TCP connection settings |
+| L | Load the two trace files by path |
 | A | Start automatic replay |
-| D | Arm step mode; does not send yet |
-| N | Send the next machine-timestamp slice and its sensor batch |
-| Up / Down | Scroll the sent-batch viewer by row |
-| Page Up / Page Down | Scroll by a viewport |
-| Home / End | Jump to the first/last rows of the batch |
-| E | Expand/collapse the sent-step payload view |
-| V | In expanded view, switch between current and previous batch |
-| J / K | Scroll payload detail down/up |
-| ] / [ | Page payload detail down/up |
-| P or Space | Pause/resume automatic replay or a running step batch |
-| R | Reset the experiment; then A or D starts again with a new Unix origin |
-| Q | Disconnect and close; Ctrl-C also closes |
+| D, then N | Enter step mode and send the next time slice |
+| P / Space | Pause/resume |
+| R | Reset for another run with fresh Unix timestamps |
+| E / V | Toggle batch/overview or inspect the previous batch |
+| Arrows, Page Up/Down, Home/End | Scroll the batch viewer |
+| Q | Disconnect and quit |
 
-Connect first and wait for subscriptions to become active, then press A, or D
-followed by N. To change files or connection during a run, press R first.
-R restarts the whole experiment, not just an interrupted message. It cannot undo
-messages already published. If using downstream monitors, reset their state
-between experiments as appropriate. Automatic reconnect/resend is disabled;
-connection loss stops the partial replay so a reconnect cannot silently splice
-two experiments together. Press R, C to disconnect if necessary, C to reconnect,
-then A/D to begin a new experiment.
+Connect with C first; wait for MQTT subscription confirmation or TCP connection
+readiness. Then use A or D followed by N. In a dry run, C enables the simulated
+connection. N advances to the next timestamp in the first (machine) trace and
+sends all unsent events from both traces through that boundary. It does not mean
+one second or one message. Long batches remain scrollable and pauseable.
 
-## Timing and stepping
+The supplied experiment spans 66 seconds. Timestamps are refreshed in outgoing
+payload copies; source files are unchanged. TCP completion means a local socket
+write, not confirmation of Liminal processing. See the usage guide for MQTT
+acknowledgment and timing details.
 
-Each trace is parsed into offsets by adding its delay steps. Both streams share
-one start time and one monotonic replay clock. A payload is copied immediately
-before publishing and `timestamp_ms` is replaced by `run_origin_ms + offset_ms`.
-Files and all other payload fields remain unchanged. Only the payload is
-published, not the Desk `send` envelope.
+## Documentation
 
-Automatic mode preserves the relative schedule specified by delays. It schedules
-against absolute offsets so processing overhead does not accumulate on every
-delay. This is an intentional difference from Desk's per-step minimum waits:
-Desk waits after a send finishes; this coordinated tool keeps both streams on
-one timeline. A slow broker can still delay sends. The UI reports maximum send
-lag instead of claiming real-time guarantees. It serializes sends and waits for
-each publish confirmation; under backpressure, overdue messages are sent in
-chronological order without dropping any. Large lag means the run is no longer
-keeping up with real time; pause/reset rather than treating it as a timing test.
+- [Usage, controls and timing](docs/usage.md)
+- [TCP and mixed MQTT/TCP connections](docs/tcp.md)
+- [Trace format](docs/trace_format.md)
+- [Architecture](docs/architecture.md)
+- [Testing and verification](docs/testing.md)
+- [Shop-floor scenario](docs/shop_floor_scenario.md)
+- [Interactive presentation](docs/shop_floor_scenarios.html)
 
-At timestamp ties, all machine events go first, then the sensor readings in
-their source-file order. Sensor interleaving is retained. Both streams' trailing
-delays are honored. Automatic replay of the supplied files lasts approximately
-66 seconds plus connection setup and final transmission overhead.
-
-P pauses both streams and freezes the remaining delay. A send already in flight
-may complete, but no next message starts while paused. Resuming continues from
-the frozen replay time. Payload timestamps represent simulated event time;
-after a manual pause they no longer correspond to wall-clock delivery times.
-
-In step mode, N advances through all events up to and including the next pending
-machine-event timestamp. It ignores wall-clock waits, but preserves event-time
-offsets and chronological publication. All machine events sharing a timestamp
-form one step. Earlier sensors in the slice go first; at its ending timestamp,
-machine events precede sensors. The first step for the supplied files sends the
-two t=0 picks and four t=0 sensor observations. The second sends the sensors at
-t=0.1–0.9, the two t=1 undocks, and the four t=1 sensors. No boundary sensors are
-sent twice. If sensors continue after the final machine event, one more N sends
-the remaining sensor tail. The next-step preview shows timestamp, batch counts,
-and machine operation names before sending. Long batches can be paused.
-
-### Inspecting the last step
-
-**N now opens the sent-batch viewer automatically.** All confirmed machine and
-sensor messages in that slice remain available for scrolling, even when the
-batch is much taller than the terminal. It starts at the top and does not
-automatically follow incoming messages, so your reading position stays stable.
-Use arrow keys, Page Up/Down, Home/End, or J/K and ]/[. Mouse-wheel scrolling is
-also supported where the terminal supplies wheel events. Use E for the overview
-and V for the previous batch. Pressing N during an active batch does not reset
-your scroll position or start a second overlapping batch.
-
-Each event is numbered from 01 within its batch, followed by the local send time,
-MQTT topic, and compact outgoing JSON. Numbers expand to three digits for large
-batches. Wrapped continuation rows are indented beneath the same event rather
-than numbered as separate events. Colors identify message kinds: machine
-messages blue, vibration brown (yellow on basic 8-color terminals), and LiDAR
-purple. The previous batch retains these colors but is dimmed. Local send time
-is when the publish was initiated; the outgoing payload timestamp remains the
-simulation's Unix event time. Only confirmed sends enter the list; an in-flight
-message may not yet appear. In dry-run mode sends are simulated.
-
-After N, the green **Sending step** pane shows the step number, timeline range,
-machine/sensor totals, and confirmed-send count. It changes to **Last step sent**
-only after the entire slice completes. Below it are the machine operation names
-and sensor counts and first/last timestamps grouped by device and modality.
-The preceding batch is separated by a divider and dimmed. The first step covers
-t=0 only; later steps cover (previous timestamp, current timestamp]. Steps can
-span multiple seconds, including the 20-second jump from t=13 to t=33.
-
-E opens the batch payload inspector. It shows only confirmed outgoing payloads,
-including their actual rewritten Unix timestamps and destination topics. V
-switches to the dimmed previous batch. J/K scroll by line and ]/[ by page. N
-can advance while inspecting; the view returns to the newest batch. P also
-works while inspecting. A reset or file reload clears batch history. Only the
-current and previous batches are retained. In dry run these are simulated sends.
-This pane is separate from broker subscription receipts, which may include
-echoes, retained messages and unrelated publishers. Automatic replay keeps its
-existing progress display; the last-step pane is for manual step mode.
-
-## Broker, subscriptions, and progress
-
-Publish topics default to `liminal/machine_data` and `liminal/sensor_data`; set
-`--machine-topic` and `--sensor-topic` to change them. The tool uses one connection
-for both publishing and subscribing, with a unique broker-assigned client ID.
-It subscribes to both publish topics by default, allowing you to observe its own
-messages and other publishers on those topics. Keep Desk playback stopped when
-using this publisher, to avoid duplicate experiments.
-
-Add `--subscribe 'liminal/#'` or repeat `--subscribe` for selected filters,
-including output topics for the monitors you want to inspect. Explicit
-`--subscribe` options replace the default subscription list. The receive pane
-shows topic counts and recent payloads; retained messages are marked. It is an
-inspection view, not a permanent packet capture: the log holds 300 messages,
-payload previews are limited to 2,048 bytes, and a 2,000-message pending display
-queue drops new display entries if overloaded (with an omission counter).
-
-The two progress bars count send events, not delay steps. Cyan is machine data;
-magenta is sensor data. Each shows X/Y and a percentage, next-message countdown,
-and last completed message. Trace elapsed excludes pauses, while wall elapsed
-includes time spent paused or waiting for the next manual step.
-
-Default QoS is 1: a send is counted after the broker's acknowledgment, which is
-not acknowledgment of Liminal processing. QoS 1 can deliver duplicates; this tool
-does not claim exactly-once processing. `--qos 0` counts local transmission
-completion and provides no broker acknowledgment. Subscription receipt likewise
-does not establish that a downstream monitor processed a message. At equal
-timestamps this tool controls publication order; consumers on different
-connections can still observe different delivery timing. Published messages
-are never retained.
-
-Optional authentication and TLS:
+## Development
 
 ```sh
-export MQTT_PASSWORD='your-password'
-.venv-replay/bin/python replay_traces.py --host broker.example \
-  --username your-user --tls --port 8883 --ca-file /path/to/ca.pem
+python -m unittest discover -v
 ```
 
-Omit `--ca-file` for the default trusted certificate authorities. Passwords are
-read from the environment and are not displayed by the UI. B changes host, port,
-and subscriptions; authentication, TLS and publish topics are startup options.
+The default suite performs offline checks; network tests are explicitly opt-in.
+See [testing](docs/testing.md) for integration and terminal smoke commands.
 
-## Checks performed
+Application code lives in `liminal_desk_cli/`, tests in `tests/`, sample inputs in
+`examples/`, and documentation in `docs/`. `pyproject.toml` declares metadata and
+dependencies; it is not required for the repository-root module launch.
 
-`python3 -m unittest -v test_replay_traces.py` covers the real supplied schedules,
-machine-first ties, every step batch, fresh timestamps without source mutation,
-pause timing, full automatic completion with a fake clock, in-flight ACKs,
-disconnect failure, malformed traces, and sensor tails/trailing delays.
+MQTT and TCP are implemented with the existing curses UI and two-stream replay.
+Textual, arbitrary stream counts, driver selection and alternative manual step
+modes remain future work. File selection currently uses path prompts.
 
-The terminal was exercised in a pseudo-terminal with dry-run connection and
-multiple manual steps. An isolated local protocol test with the real Paho client
-confirmed subscription acknowledgment, all 2,680 QoS-1 publishes and their ACKs,
-and all 2,680 subscription echoes. No experiment was published to your broker.
-TLS, authentication, and behavior with your particular broker and Liminal
-deployment have not been exercised.
-
-MQTT API reference: [Eclipse Paho Python client documentation](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html).
+See [LICENSE](LICENSE) for licensing terms.

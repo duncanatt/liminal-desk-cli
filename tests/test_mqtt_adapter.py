@@ -92,8 +92,13 @@ class MqttAdapterTests(unittest.TestCase):
         paho=ModuleType('paho');mqtt_pkg=ModuleType('paho.mqtt');mqtt=ModuleType('paho.mqtt.client')
         paho.mqtt=mqtt_pkg;mqtt_pkg.client=mqtt
         mqtt.Client=Mock(return_value=client);mqtt.CallbackAPIVersion=SimpleNamespace(VERSION2=2)
+        self.broker.notify('subscribed', ['liminal/#'])
+        self.broker.notify('message', ('old/session', 'old', False))
         with patch.dict(sys.modules,{'paho':paho,'paho.mqtt':mqtt_pkg,'paho.mqtt.client':mqtt}):
             self.broker.connect()
+        self.broker.pump()
+        self.assertFalse(self.broker.subscribed)
+        self.assertFalse(self.broker.received)
         client.on_connect(client,None,None,SimpleNamespace(is_failure=True),None)
         self.broker.pump()
         self.assertFalse(self.broker.ready)

@@ -2,9 +2,10 @@
 import copy
 import time
 from .models import StepBatch
+from ..transports.base import send_complete
 
 class Replay:
-    """One timeline; one in-flight send. MQTT work stays on its network thread."""
+    """One timeline and one in-flight send, independent of transport implementation."""
     def __init__(self, schedule, broker, topics, clock=time.monotonic):
         self.schedule, self.broker, self.topics, self.clock = schedule, broker, topics, clock
         self.index = 0
@@ -33,7 +34,8 @@ class Replay:
 
     def start(self, mode):
         if not self.broker.ready:
-            raise RuntimeError('Connect and wait for subscription confirmation first (C)')
+            raise RuntimeError(getattr(self.broker, 'not_ready_message',
+                                       'Connect and wait for subscription confirmation first (C)'))
         if self.epoch is not None:
             raise RuntimeError('Use R to retry before starting a fresh run')
         self.epoch = time.time_ns() // 1_000_000
@@ -66,9 +68,9 @@ class Replay:
             raise RuntimeError('Connection lost. Partial replay stopped; R starts a new experiment.')
         # Complete the pending send even when paused, but never start another.
         if self.pending is not None:
-            if self.inflight is not None and not self.inflight.is_published():
+            if self.inflight is not None and not send_complete(self.inflight):
                 if self.clock()-self.pending_since > 10:
-                    raise RuntimeError('Publish confirmation timed out; delivery is uncertain. Retry as a new run.')
+                    raise RuntimeError('Send completion timed out; delivery is uncertain. Retry as a new run.')
                 return
             event = self.pending
             self.counts[event.stream] += 1
@@ -109,6 +111,8 @@ class Replay:
 
     def status(self, stream):
         if self.pending is not None and self.pending.stream == stream:
+            if hasattr(self.broker, 'send_status'):
+                return self.broker.send_status(self.topics[stream])
             return 'Sending: awaiting broker ACK' if not self.broker.args.dry_run else 'Sending (simulated)'
         upcoming = next((e for e in self.schedule.events[self.index:] if e.stream == stream), None)
         if upcoming is None:

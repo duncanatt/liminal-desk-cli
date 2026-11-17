@@ -5,8 +5,8 @@ from pathlib import Path
 from collections import Counter
 from ..replay.engine import Replay
 from ..replay.schedule import Schedule
-from ..transports.mqtt import Broker
-from .screens import prompt
+from ..transports.manager import TransportManager
+from .screens import prompt, connection_settings
 from .widgets import scroll_offset
 
 def terminal(screen, args, schedule):
@@ -26,7 +26,7 @@ def terminal(screen, args, schedule):
         curses.init_pair(4, 33 if curses.COLORS >= 256 else curses.COLOR_BLUE, -1)
         curses.init_pair(5, 130 if curses.COLORS >= 256 else curses.COLOR_YELLOW, -1)
         curses.init_pair(6, 141 if curses.COLORS >= 256 else curses.COLOR_MAGENTA, -1)
-    broker = Broker(args)
+    broker = TransportManager(args)
     replay = Replay(schedule, broker, args.topics)
     notice = 'C connect | A automatic replay | D step mode, then N next'
     paths = [args.machine, args.sensor]
@@ -54,7 +54,7 @@ def terminal(screen, args, schedule):
                 notice = str(exc)
             screen.erase()
             text(0, 'LIMINAL REPLAY  |  coordinated MQTT publisher + subscriber', 1)
-            text(1, f'{args.host}:{args.port} | {broker.state} | QoS {args.qos}' + (' | DRY RUN' if args.dry_run else ''))
+            text(1, broker.state + (' | DRY RUN' if args.dry_run else ''))
             wall = time.monotonic()-started_wall if started_wall else 0
             text(2, f'{replay.state} / {replay.mode} | Trace {replay.elapsed()/1000:.3f}/{schedule.duration/1000:.3f}s | Wall {wall:.1f}s | Max send lag {replay.max_late:.0f}ms')
             text(3, f'Replay Unix origin: {replay.epoch or "not started"}; source files are never modified')
@@ -71,7 +71,7 @@ def terminal(screen, args, schedule):
             counts = Counter(e.stream for e in batch)
             machine = [f'{e.payload.get("device_id")}:{e.payload.get("event", "?")}' for e in batch if e.stream == 0]
             text(13, f'Next step -> t={target/1000:.3f}: {counts[0]} machine, {counts[1]} sensor | '+(', '.join(machine) or 'finish sensor tail'))
-            text(14, 'C connect/disconnect  B broker setup  L load files  A run  D step mode')
+            text(14, 'C connect/disconnect  B connections  L load files  A run  D step mode')
             text(15, 'N next slice  P pause/resume  E expand  R reset  Q close')
             text(16, notice)
             height = screen.getmaxyx()[0]
@@ -92,7 +92,7 @@ def terminal(screen, args, schedule):
                 text(row, 'LAST STEP SENT | D then N to send and inspect a batch', 3)
                 row += 1
             row += 1
-            text(row, 'RECEIVED (subscription log, separate from sent batches)', 1)
+            text(row, 'RECEIVED (MQTT subscriptions / TCP replies; separate from sent batches)', 1)
             row += 1
             text(row, ' | '.join(f'{topic}: {n}' for topic, n in broker.received.items()) or 'No messages received')
             row += 1
@@ -174,7 +174,7 @@ def terminal(screen, args, schedule):
                 elif key == 'c':
                     if active:
                         raise ValueError('R resets the current experiment before connecting/disconnecting')
-                    if broker.client is not None or broker.connected:
+                    if broker.is_open:
                         broker.close()
                     else:
                         broker.connect()
@@ -191,18 +191,16 @@ def terminal(screen, args, schedule):
                     notice = 'Both files loaded and validated.'
                 elif key == 'b':
                     if active:
-                        raise ValueError('R resets the current experiment before broker setup')
-                    host = prompt(screen, 'Broker host:', args.host)
-                    port = int(prompt(screen, 'Broker port:', str(args.port)))
-                    if not 1 <= port <= 65535:
-                        raise ValueError('Port must be 1..65535')
-                    subscriptions = prompt(screen, 'Subscription topics (comma-separated):', ','.join(args.subscribe))
-                    topics = [x.strip() for x in subscriptions.split(',') if x.strip()]
-                    if not topics:
-                        raise ValueError('At least one subscription topic is required')
+                        raise ValueError('R resets the current experiment before connection setup')
+                    updated = connection_settings(screen, args)
                     broker.close()
-                    args.host, args.port, args.subscribe = host, port, topics
-                    notice = 'Broker settings updated; C connects. Publish topics are configured with command-line options.'
+                    args = updated
+                    broker = TransportManager(args)
+                    replay = Replay(schedule, broker, args.topics)
+                    scroll = 0
+                    inspect_previous = False
+                    started_wall = None
+                    notice = 'Connections updated; C connects both streams. TCP is plain framed JSON, without application ACKs.'
             except Exception as exc:
                 notice = str(exc)
     finally:

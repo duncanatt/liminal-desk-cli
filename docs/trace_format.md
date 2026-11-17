@@ -14,4 +14,6 @@ field names, but the current CLI interface labels its two streams machine/sensor
 At equal times first-stream messages precede second-stream messages; each input's
 own tie order is preserved. N advances through the next first-stream timestamp,
 including second-stream observations up to that boundary. A final step handles
-any sensor tail and trailing delays. See usage.md for timing and ACK caveats.
+any sensor tail and trailing delays. See [usage](usage.md) for timing and completion semantics and [TCP](tcp.md) for
+framing. A send payload has the same fields over either transport; the wrapper
+and delay steps are replay instructions, never inserted into network payloads.
