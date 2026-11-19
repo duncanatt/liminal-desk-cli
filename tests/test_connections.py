@@ -1,12 +1,12 @@
 """Offline configuration, routing, and transport-neutral completion checks."""
 import contextlib
 import io
-from unittest.mock import patch, Mock
+from unittest.mock import Mock
 import unittest
 from liminal_desk_cli.config import parse_args, StreamConnection
 from liminal_desk_cli.transports.base import send_complete, MqttReceipt
 from liminal_desk_cli.transports.manager import TransportManager
-from liminal_desk_cli.ui.screens import connection_settings
+from liminal_desk_cli.config import configure_streams
 
 
 class ConnectionTests(unittest.TestCase):
@@ -61,14 +61,16 @@ class ConnectionTests(unittest.TestCase):
 
     def test_connection_menu_edits_transactionally(self):
         _, args = parse_args([])
-        replies=['tcp','localhost','9001','tcp','localhost','9002']
-        with patch('liminal_desk_cli.ui.screens.prompt', side_effect=replies):
-            updated=connection_settings(None,args)
+        from copy import copy
+        updated = copy(args)
+        updated.subscribe = []
+        configure_streams(updated, [StreamConnection(s.name,'tcp','localhost',9001+i,s.topic)
+                                    for i,s in enumerate(args.streams)])
         self.assertEqual([s.port for s in updated.streams],[9001,9002])
         self.assertEqual([s.port for s in args.streams],[1883,1883])
         self.assertEqual(updated.subscribe,[])
-        with patch('liminal_desk_cli.ui.screens.prompt',side_effect=['tcp','localhost','0','tcp','localhost','9002']),self.assertRaises(ValueError):
-            connection_settings(None,args)
+        with self.assertRaises(ValueError):
+            configure_streams(args, [StreamConnection('machine','tcp','localhost',0,'unused')])
         self.assertEqual([s.transport for s in args.streams],['mqtt','mqtt'])
 
     def test_partial_connect_failure_closes_all_adapters(self):

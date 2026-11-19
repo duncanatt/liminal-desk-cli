@@ -13,9 +13,13 @@ def main(argv=None):
             return 0
         if not sys.stdin.isatty() or not sys.stdout.isatty():
             parser.error('Interactive mode needs a terminal; use --check for validation')
-        import curses
-        from .ui.app import terminal
-        curses.wrapper(terminal, args, schedule)
+        try:
+            from .ui.app import DeskApp
+        except ModuleNotFoundError as exc:
+            if exc.name and exc.name.split(".")[0] in ("textual", "rich"):
+                raise RuntimeError("Install UI dependencies with: python -m pip install -r requirements.txt") from exc
+            raise
+        DeskApp(args, schedule).run()
     except KeyboardInterrupt:
         return 130
     except Exception as exc:

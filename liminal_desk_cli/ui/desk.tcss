@@ -1,0 +1,75 @@
+Screen { background: #1E2127; color: #ABB2BF; }
+#title { height: 1; color: #ABB2BF; text-style: bold; padding: 0 1; }
+#connection-status { height: 1; padding: 0 1; }
+#streams { height: 2; padding: 0 1; color: #ABB2BF; }
+#selectors { height: 3; padding: 0 1; align-vertical: middle; }
+#selectors Label { width: auto; margin: 0 1; }
+#driver { width: 23; }
+#step-mode { width: 33; }
+#controls { height: 1; padding: 0 1; }
+#controls Button { margin-right: 1; min-width: 7; width: auto; }
+#progress { height: 4; padding: 0 1; border-bottom: solid #5C6370; }
+#workspace { height: 1fr; min-height: 6; }
+#tabs { width: 1fr; }
+TabPane { padding: 0 1; }
+#sent-content { height: 1fr; }
+#history { width: 26; border-right: solid #5C6370; }
+#events-area { width: 1fr; }
+#batch-heading { height: 1; padding-left: 1; }
+#filters { height: 1; margin: 0 0 1 0; }
+#filters Select { width: 21; margin-right: 1; }
+#filter-status { width: 1fr; color: #5C6370; }
+#events, #received-events { height: 1fr; }
+#row-status, #receive-status { height: 1; color: #5C6370; }
+#inspector { display: none; width: 42; border-left: solid #5C6370; padding: 0 1; }
+#inspection { width: 1fr; height: auto; padding-top: 1; }
+#inspector-close { width: auto; }
+#next-preview { height: 1; padding: 0 1; color: #61AFEF; }
+#notice { height: 2; padding: 0 1; color: #D19A66; }
+Footer { background: #1E2127; color: #ABB2BF; }
+Button { background: #1E2127; color: #ABB2BF; border: solid #5C6370; }
+Button:hover, Button:focus { background: #3A3F4B; color: #61AFEF; border: solid #61AFEF; }
+Button:disabled { color: #5C6370; background: #1E2127; }
+Select { background: #1E2127; color: #ABB2BF; }
+SelectCurrent { background: #1E2127; color: #ABB2BF; border: solid #5C6370; }
+SelectCurrent:focus { border: solid #61AFEF; }
+SelectOverlay, OptionList { background: #1E2127; color: #ABB2BF; border: solid #5C6370; }
+OptionList > .option-list--highlighted { background: #3A3F4B; color: #61AFEF; }
+Input { background: #1E2127; color: #ABB2BF; border: solid #5C6370; }
+Input:focus { border: solid #61AFEF; }
+Input > .input--cursor { background: #5C6370; color: #ABB2BF; }
+Input > .input--selection { background: #3A3F4B; }
+DataTable { background: #1E2127; color: #ABB2BF; scrollbar-color: #5C6370; scrollbar-background: #1E2127; }
+DataTable > .datatable--header { background: #1E2127; color: #ABB2BF; text-style: bold; }
+DataTable > .datatable--cursor { background: #3A3F4B; color: #ABB2BF; }
+DataTable:focus > .datatable--cursor { background: #3A3F4B; color: #ABB2BF; }
+DataTable > .datatable--hover { background: #3A3F4B; }
+Tabs, Tab { background: #1E2127; color: #5C6370; }
+Tab.-active { background: #3A3F4B; color: #61AFEF; }
+Underline > .underline--bar { color: #61AFEF; background: #1E2127; }
+Underline { background: #1E2127; color: #5C6370; }
+ModalScreen { align: center middle; background: #1E2127 70%; }
+.dialog { width: 90%; max-width: 110; height: 90%; border: solid #5C6370; background: #1E2127; padding: 1 2; }
+.dialog-title { height: 2; text-style: bold; }
+.dialog-actions { height: 3; align-horizontal: right; }
+.dialog-actions Button { margin-left: 1; }
+#file-browser { height: 1fr; margin-top: 1; }
+#file-tree { width: 1fr; background: #1E2127; color: #ABB2BF; }
+#file-tree > .tree--cursor { background: #3A3F4B; color: #61AFEF; }
+#file-info { width: 1fr; border-left: solid #5C6370; padding-left: 2; }
+#file-preview { height: auto; margin-bottom: 1; }
+.recent { width: 1fr; height: auto; min-height: 3; }
+#file-error, #connection-error { height: auto; max-height: 4; color: #E06C75; }
+#connection-fields { height: 1fr; }
+.connection-row { height: 3; }
+.connection-row Select { width: 23; }
+.connection-row Input { width: 1fr; }
+.connection-row Input:last-child { width: 12; }
+.stream-label { color: #61AFEF; text-style: bold; }
+
+#controls Button { border: none; height: 1; padding: 0 1; }
+#filters SelectCurrent { border: none; height: 1; padding: 0 1; }
+
+DataTable > .datatable--fixed { background: #1E2127; color: #ABB2BF; }
+DataTable > .datatable--fixed-cursor { background: #3A3F4B; color: #ABB2BF; }
+DataTable > .datatable--header-cursor { background: #3A3F4B; color: #ABB2BF; }

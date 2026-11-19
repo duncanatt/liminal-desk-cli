@@ -9,23 +9,27 @@ class Replay:
     def __init__(self, schedule, broker, topics, clock=time.monotonic):
         self.schedule, self.broker, self.topics, self.clock = schedule, broker, topics, clock
         self.index = 0
-        self.counts = [0, 0]
+        self.counts = [0] * len(schedule.totals)
         self.state = 'Ready'
         self.mode = 'auto'
         self.epoch = None
         self.position = 0.0
         self.anchor = clock()
         self.target = None
+        self.step_end = None
         self.inflight = None
         self.pending = None
         self.pending_since = 0
         self.pending_wall = None
-        self.last = ['No messages sent', 'No messages sent']
+        self.last = ['No messages sent'] * len(schedule.totals)
         self.max_late = 0.0
         self.error = ''
         self.paused_from = None
         self.batch = None
         self.previous_batch = None
+        self.history = []
+        self.driver = 0
+        self.step_mode = 'driver'
 
     def elapsed(self):
         if self.mode == 'auto' and self.state == 'Running':
@@ -55,10 +59,12 @@ class Replay:
     def next(self):
         if self.mode != 'step' or self.state != 'Step ready':
             return
-        self.target, events = self.schedule.preview(self.index)
+        self.target, events = self.schedule.preview(self.index, self.driver, self.step_mode)
+        self.step_end = self.index + len(events)
         self.previous_batch = self.batch
         self.batch = StepBatch(1 if self.batch is None else self.batch.number+1,
                                int(self.position), self.target, events)
+        self.history.append(self.batch)
         self.state = 'Stepping'
 
     def tick(self):
@@ -74,7 +80,14 @@ class Replay:
                 return
             event = self.pending
             self.counts[event.stream] += 1
-            if self.mode == 'step' and self.batch is not None:
+            if self.mode == 'auto' and (self.batch is None or self.batch.end != event.at):
+                if self.batch is not None:
+                    self.batch.complete = True
+                self.previous_batch = self.batch
+                self.batch = StepBatch(len(self.history)+1, event.at, event.at,
+                                       [e for e in self.schedule.events[self.index:] if e.at == event.at])
+                self.history.append(self.batch)
+            if self.batch is not None:
                 payload = copy.deepcopy(event.payload)
                 payload['timestamp_ms'] = self.epoch + event.at
                 self.batch.sent.append((event, payload))
@@ -88,7 +101,7 @@ class Replay:
         limit = self.elapsed() if self.mode == 'auto' else self.target
         if self.index < len(self.schedule.events):
             event = self.schedule.events[self.index]
-            if event.at <= limit:
+            if event.at <= limit and (self.mode == 'auto' or self.index < self.step_end):
                 payload = copy.deepcopy(event.payload)
                 payload['timestamp_ms'] = self.epoch + event.at
                 if self.mode == 'step':
@@ -108,6 +121,8 @@ class Replay:
         if self.index == len(self.schedule.events) and (self.mode == 'step' or limit >= self.schedule.duration):
             self.position = self.schedule.duration
             self.state = 'Completed'
+            if self.batch is not None:
+                self.batch.complete = True
 
     def status(self, stream):
         if self.pending is not None and self.pending.stream == stream:

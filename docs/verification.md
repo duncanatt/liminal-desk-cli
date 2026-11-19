@@ -63,3 +63,28 @@ recorded below; Textual remains unimplemented.
   subscription confirmation from enabling a new replay prematurely.
 
 See [TCP instructions](tcp.md) for the framing contract, limits and rerun commands.
+
+
+## Textual / One Dark interface — 17 November 2026
+
+The curses interface was replaced by Textual while retaining the replay engine and
+MQTT/TCP adapters. Added driver selection, three manual step modes, complete run
+batch history, stable scrolling, filters, payload inspection, validated file
+browsing and connection dialogs. The two example trace files were unchanged.
+
+- Offline discovery: 55 cases, 38 run successfully and 17 opt-in cases skipped.
+- Explicit loopback integration: all 17 MQTT/TCP cases passed, including full
+  66-second automatic replays and comparison of original payload fields.
+- Real pseudo-terminal MQTT and TCP checks passed connection, two N batches,
+  scrolling/inspection, previous batch, reset, automatic replay, pause/resume and quit.
+- Full-duration Textual run with machine MQTT and sensor TCP delivered all
+  36 + 2,644 messages, recording every completed send. Maximum observed send lag
+  in this headless rendering test was 107.8 ms; this is a measurement, not a timing
+  guarantee. Payload timestamps still derive from the unchanged trace offsets.
+- Headless interaction checks exercise file rejection/load/cancel, settings
+  validation, retained event numbers under filters, scroll/selection across tabs
+  and batches, alternate driver/modes, and a small 80×24 terminal.
+
+These tests use isolated local protocol fixtures. They do not verify a production
+broker, TLS credentials, downstream fusion rules, or Liminal processing ACKs.
+Graphify outputs have not been refreshed by this UI implementation.

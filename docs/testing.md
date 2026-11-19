@@ -1,10 +1,10 @@
 # Testing Liminal Desk CLI
 
 Run from the repository root with the Python environment active. No application
-installation is needed. Install Paho for any test involving MQTT:
+installation is needed. Install UI and MQTT dependencies:
 
 ```sh
-python -m pip install 'paho-mqtt>=2,<3'
+python -m pip install -r requirements.txt
 ```
 
 ## Offline checks
@@ -15,14 +15,20 @@ python -m liminal_desk_cli --check
 python -m liminal_desk_cli --transport tcp --check
 ```
 
-At the TCP implementation checkpoint, discovery lists 48 tests: 31 offline cases
-run, and 17 opt-in network cases are skipped. These counts describe that
-checkpoint and may change as tests are added. The skipped tests are not silently
-counted as successful network checks.
+At the Textual upgrade checkpoint, discovery lists 55 tests: 38 offline cases
+run, and 17 opt-in network cases are skipped. Network checks must be run explicitly;
+a skipped case is not counted as successful network verification.
 
 Offline checks cover parsing and malformed inputs, scheduling, timestamps,
 pause/resume, batch formatting and scrolling, module launch, connection settings,
 framing and frame limits, MQTT serialization/callbacks, and completion receipts.
+The Textual Pilot tests exercise actual tables, file/settings dialogs, payload
+inspection, stable selection, filtering, alternate drivers/modes and an 80×24
+terminal. Tests use no real user preferences or external broker.
+
+```sh
+python -m unittest tests.test_textual_ui tests.test_step_modes -v
+```
 
 ## Isolated network integration
 
@@ -47,6 +53,8 @@ Each suite contains a real-time automatic replay taking about 66 seconds.
 ```sh
 python -m tests.terminal_smoke --transport mqtt
 python -m tests.terminal_smoke --transport tcp
+# Full 66-second run with Textual rendering and mixed transport adapters
+python -m tests.textual_replay_smoke
 ```
 
 These launch the application in a pseudo-terminal against isolated local test
@@ -77,6 +85,5 @@ production shop-floor fusion are outside these checks.
 
 See [verification history](verification.md) for observed results from the
 16 November 2026 audits. Those timings and counts are dated observations, not
-new measurements each time this document is read. Unused-import cleanup and a
-graphify refresh were identified separately and have not been performed by this
-documentation update.
+new measurements each time this document is read. Graphify is a separately generated navigation snapshot and has not been refreshed
+for this interface upgrade.

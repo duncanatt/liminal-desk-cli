@@ -1,6 +1,6 @@
 # TCP and mixed-transport replay
 
-The existing replay engine and curses interface support MQTT and TCP. MQTT
+The existing replay engine and Textual interface support MQTT and TCP. MQTT
 remains the default. Timing, Unix timestamp rebasing, N-step boundaries, colored
 numbered batches, pause/resume and retry all use the same engine.
 
@@ -23,7 +23,7 @@ python -m liminal_desk_cli --transport tcp --host 127.0.0.1 --port 9000
 python -m liminal_desk_cli --machine-transport mqtt --machine-port 1883 \
   --sensor-transport tcp --sensor-host 127.0.0.1 --sensor-port 9002
 
-# Try the controls without network access or Paho.
+# Try the controls without network access or Paho (Textual is still required).
 python -m liminal_desk_cli --transport tcp --dry-run
 ```
 

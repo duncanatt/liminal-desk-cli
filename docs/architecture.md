@@ -1,36 +1,43 @@
 # Architecture
 
-The player has transport-independent replay, MQTT/TCP adapters and one curses UI.
-Launch from the repository root with
-`python -m liminal_desk_cli`. `__main__.py` calls `cli.main`; `config.py` retains
-the existing arguments and resolves default example paths relative to the package.
+One transport-independent replay engine serves one Textual interface for MQTT,
+TCP and mixed connections. Launch from the repository root with
+`python -m liminal_desk_cli`; application installation is optional.
 
-`replay/trace.py` validates version-1 JSON and `schedule.py` merges two traces with
-machine-first timestamp ties. `engine.py` owns replay state, the shared clock,
-timestamp rebasing, stepping, pause and confirmation tracking. It imports neither
-curses nor Paho; it receives the shared transport manager used for delivery. `models.py`
-holds events and batches, including existing pure text-formatting helpers.
+- `cli.py` validates inputs and defers Textual imports until interactive launch.
+  `config.py` resolves paths, endpoints, authentication and protocol options.
+- `replay/trace.py` validates version-1 Desk JSON. `schedule.py` merges trace offsets
+  and selects driver, timestamp or single-message boundaries. Timestamp ties retain
+  stream order, independently of the selected driver.
+- `replay/engine.py` owns the common monotonic clock, timestamp rebasing, pause,
+  one-in-flight-send rule, confirmation tracking and complete run batch history.
+  Manual steps have both a time boundary and an end index, so single-message steps
+  do not accidentally consume other messages at the same timestamp.
+- `transports/manager.py` routes streams, shares adapters at identical endpoints,
+  and assigns receive record sequence numbers for the UI. `base.py` abstracts
+  completion; `mqtt.py` wraps Paho and `tcp.py` implements framed background I/O.
+- `ui/app.py` owns workspace interaction and polls replay/transport progress.
+  Rendering is throttled independently from the send pump. `screens.py` contains
+  transactional file/connection dialogs. `theme.py` and `desk.tcss` define the
+  explicit One Dark palette. UI selection and scrolling are independent of network
+  arrival. `widgets.py` retains pure scrolling helpers tested by earlier checks.
 
-`transports/manager.py` routes streams and shares connections at the same
-transport/host/port. `base.py` defines neutral send completion. MQTT receipts
-use broker ACK/local-write status; TCP receipts use local socket write completion.
-`mqtt.py` contains the Broker; `tcp.py` implements length-prefixed JSON and
-background I/O. The engine polls completion without implementing either protocol.
-`ui/app.py` retains curses rendering/key handling, `screens.py` contains path-entry
-prompts, and `widgets.py` contains pure scrolling logic. UI imports are deferred
-for --help and --check. The engine and transports never import UI code.
+The engine and transports import no UI libraries. `--check` and `--help` require
+neither Textual nor Paho. MQTT still needs Paho at runtime; TCP needs no MQTT
+library. Textual is needed for any interactive transport. The flat package layout
+and conventional module launch are unchanged.
 
-Replay remains two streams, with the first driving N steps, one in-flight send
-and the original publication order. Either stream can use MQTT or TCP. Textual,
-arbitrary streams and other manual step modes remain future work.
+The schedule and engine support multiple stream indices; the current launcher and
+file/settings UI expose two streams with the existing machine/sensor labels. Either
+can be driver, and payloads need no shop-floor-specific fields beyond the trace
+format's timestamp. Arbitrary stream creation remains outside this release.
 
-Tests use a fake publisher and clock. Launch tests run subprocesses and verify
-the example defaults without installing the application. Fixtures use the supplied
-example JSON so relocated file paths and packaged-module imports are exercised.
+Sent history is held in memory for a run. Received display is bounded to 3,000
+records; adapter queue/log/body limits are independent. Reset replaces the engine
+and clears sent history, while received session records remain available. UI file
+preferences contain recent paths and folder only.
 
-Offline tests use fake publishers/clocks, while opt-in integration tests use real
-Paho/TCP adapters against local protocol fixtures. Terminal smoke tests launch
-the actual module in a pseudo-terminal; a separate compatibility check starts an
-explicitly supplied Liminal binary. See [testing](testing.md) for commands and
-scope. Generated graphify outputs are a navigation aid and require a refresh
-after code changes; they are not an automatically maintained architecture view.
+Tests cover deterministic clocks/publishers, real Textual widgets with headless
+Pilot interactions, launch subprocesses, isolated MQTT/TCP fixtures and a real
+pseudo-terminal launch. See [testing](testing.md). Graphify outputs are an older
+navigation snapshot until explicitly refreshed; source and tests are authoritative.

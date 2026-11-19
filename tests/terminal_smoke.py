@@ -1,4 +1,4 @@
-"""Drive the actual curses UI against the isolated MQTT protocol test server."""
+"""Drive the actual Textual UI against the isolated MQTT protocol test server."""
 import argparse, tempfile, signal
 import os, pty, fcntl, termios, struct, subprocess, select, time, sys
 from pathlib import Path
@@ -29,16 +29,14 @@ def wait(condition,seconds=6):
   if condition():return
  raise AssertionError('UI condition timed out; tail: '+output[-2500:].decode(errors='replace'))
 try:
- pump(.3);key('c');wait(lambda:(b'Connected (local write' if options.transport=='tcp' else b'subscriptions active') in output)
+ pump(1);key('c');wait(lambda:(b'Connected (local write' if options.transport=='tcp' else b'subscriptions active') in output)
  key('d');key('n');wait(lambda:len(server.messages)==6)
  key('n');wait(lambda:len(server.messages)==48)
  pump(.3)
- for _ in range(12):key(']')
- # Force a complete terminal redraw rather than matching incremental ANSI diffs.
- fcntl.ioctl(master,termios.TIOCSWINSZ,struct.pack('HHHH',36,139,0,0))
- os.kill(process.pid,signal.SIGWINCH);pump(.3)
- assert b'42:' in output,'Last event of batch not visible'
- key('v');key('e')
+ # Navigate to the last event, inspect its payload, then return to the table.
+ key('e');key('\x1b[1;5F');key('\r');pump(.2)
+ assert (b'Broker acknowledged' if options.transport=='mqtt' else b'TCP written locally') in output,'Payload inspector not rendered'
+ key('\x1b');key('v')
  key('r');key('a');wait(lambda:len(server.messages)>=58)
  key('p');pump(.2);count=len(server.messages);pump(.3)
  assert len(server.messages)==count,'Messages continue during pause'
@@ -48,7 +46,7 @@ try:
  assert b"is not defined" not in output
  assert not server.errors,server.errors
  (Path(tempfile.gettempdir())/('liminal-ui-'+options.transport+'-transcript.txt')).write_bytes(output)
- print('PASS: real module launch, transport connect/receive, two N batches, scroll to event42, previous view, reset, automatic replay, pause/resume and clean quit.')
+ print('PASS: real module launch, transport connect/receive, two N batches, scroll and payload inspector, previous batch, reset, automatic replay, pause/resume and clean quit.')
 finally:
  (Path(tempfile.gettempdir())/('liminal-ui-'+options.transport+'-transcript.txt')).write_bytes(output)
  if process.poll() is None:

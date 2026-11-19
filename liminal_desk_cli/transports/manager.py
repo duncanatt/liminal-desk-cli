@@ -14,6 +14,8 @@ class TransportManager:
         self.received = Counter()
         self.log = deque(maxlen=300)
         self.dropped = 0
+        self.record_log = deque(maxlen=3000)
+        self.record_serial = 0
         self._seen = {}
         self._omitted = 0
         groups = {}
@@ -100,6 +102,9 @@ class TransportManager:
                 records = list(adapter.log)[-delta:]
                 self._omitted += max(0, delta-len(records))
                 self.log.extend(records)
+                for record in records:
+                    self.record_serial += 1
+                    self.record_log.append((self.record_serial, *record))
             self._seen[key] = count
             total.update(adapter.received)
         self.received = total

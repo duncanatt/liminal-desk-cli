@@ -7,8 +7,11 @@ name = "liminal-desk-cli"
 version = "0.1.0"
 description = "A terminal-based MQTT/TCP trace player for Liminal"
 readme = "README.md"
-requires-python = ">=3.9"
-dependencies = ["paho-mqtt>=2,<3"]
+requires-python = ">=3.10"
+dependencies = ["paho-mqtt>=2,<3", "textual>=8.2,<9"]
 
 [tool.setuptools.packages.find]
 include = ["liminal_desk_cli*"]
+
+[tool.setuptools.package-data]
+liminal_desk_cli = ["ui/*.tcss"]

@@ -1,112 +1,112 @@
 # Liminal Desk CLI
 
-A terminal-based MQTT/TCP trace player for Liminal, with synchronized replay,
-interactive stepping and live message inspection.
+A terminal trace player for Liminal, with coordinated MQTT/TCP replay, a One Dark
+Textual interface, and message-by-message inspection.
+
+![One Dark workspace](docs/assets/one_dark_workspace.png)
 
 ## Setup
 
-Python 3.9 or newer on macOS/Linux. Run commands from the repository root.
-The application does not need to be installed.
-
-For a fresh checkout, create and activate a Python environment:
+Python 3.10 or newer. From the repository root:
 
 ```sh
-cd liminal-desk-cli
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m liminal_desk_cli
 ```
 
-If you already use the existing `venv/`, activate it with
-`source venv/bin/activate` instead. Install the MQTT dependency if using MQTT:
-
-```sh
-python -m pip install 'paho-mqtt>=2,<3'
-```
-
-TCP-only replay, offline validation and dry-run mode use the Python standard
-library and do not require Paho. The current interface uses curses, not Textual.
+If you already use the repository's `venv`, activate it with
+`source venv/bin/activate` and install the updated requirements there. No application
+installation or `PYTHONPATH` change is required. Textual is required for the UI;
+Paho is needed only for MQTT. Offline `--help` and `--check` need neither.
 
 ## Launch
 
 ```sh
-# MQTT: both streams use localhost:1883 by default.
+# MQTT: localhost:1883
 python -m liminal_desk_cli
-
-# TCP: machine input on 8080, sensor input on 8081.
+# TCP: machine input 8080, sensor input 8081
 python -m liminal_desk_cli --transport tcp --host 127.0.0.1
-
-# Mixed: machine MQTT on 1883; sensor TCP on 9002.
+# Mixed MQTT / TCP
 python -m liminal_desk_cli --sensor-transport tcp --sensor-port 9002
-
-# Inspect the interface without connecting or sending.
+# Explore without sending anything to the network
 python -m liminal_desk_cli --dry-run
-
-# Validate both input traces without a terminal or network.
+# Validate files without opening the UI
 python -m liminal_desk_cli --check
+# Custom traces, in stream order
+python -m liminal_desk_cli path/to/first.json path/to/second.json
 ```
 
-Your broker or Liminal TCP server must already be running. The CLI does not
-start either. See [TCP setup](docs/tcp.md) and the
-[example Liminal TCP receiver](examples/shop_floor/liminal_tcp_inputs.toml).
-The receiver prints raw inputs; it does not implement shop-floor fusion.
+Start your broker or Liminal TCP receiver separately. The default inputs are the
+same JSON traces in `examples/shop_floor/`: 36 machine messages and 2,644 sensor
+messages over 66 seconds. See [TCP setup](docs/tcp.md) and the
+[example receiver](examples/shop_floor/liminal_tcp_inputs.toml).
 
-The default traces are in `examples/shop_floor/`. Supply your own in this order:
+## Workspace
 
-```sh
-python -m liminal_desk_cli path/to/machine.json path/to/sensor.json --host localhost
-```
+- **Driver and step selectors:** first stream drives stepping by default. Choose
+  next driver event time, next timestamp across both streams, or one message.
+- **Sent batches:** numbered, scrollable, coloured event rows; all batches in the
+  current run remain available. Filters preserve original event numbers.
+- **Received:** separate MQTT subscription traffic or TCP replies. Switching tabs
+  does not pause replay, clear events, or move the selected row.
+- **Payload inspector:** press Enter on a row to inspect the actual outgoing JSON,
+  rebased timestamp, destination, and transport completion status.
+- **Open trace:** directory browser, editable path, validation preview, recent
+  files, and remembered folder. Invalid files never replace the current trace.
+- **Connections:** edit per-stream MQTT/TCP endpoints and MQTT options.
+
+The palette matches the [One Dark terminal profile](https://github.com/nathanbuchar/atom-one-dark-terminal):
+background `#1E2127`, text `#ABB2BF`, selection `#3A3F4B`, machine blue `#61AFEF`,
+vibration amber `#D19A66`, LiDAR purple `#C678DD`. True-colour terminal support
+is needed for exact colours. `NO_COLOR` is respected.
 
 ## Controls
 
 | Key | Action |
 |---|---|
-| C | Connect/disconnect both streams |
-| B | Edit per-stream MQTT/TCP connection settings |
-| L | Load the two trace files by path |
+| C | Connect/disconnect streams |
+| B | Connection settings |
+| O / L | Open a trace file |
 | A | Start automatic replay |
-| D, then N | Enter step mode and send the next time slice |
+| D, then N | Arm step mode, then send the next batch |
 | P / Space | Pause/resume |
-| R | Reset for another run with fresh Unix timestamps |
-| E / V | Toggle batch/overview or inspect the previous batch |
-| Arrows, Page Up/Down, Home/End | Scroll the batch viewer |
+| R | Reset with fresh timestamps on the next run |
+| Enter | Inspect selected event or select a batch |
+| Escape | Close inspector or cancel a dialog |
+| Arrows, Page Up/Down, Ctrl+Home/End | Navigate the focused table |
+| V / Shift+V / F | Previous / next / latest batch |
+| E | Focus the sent-event table |
 | Q | Disconnect and quit |
 
-Connect with C first; wait for MQTT subscription confirmation or TCP connection
-readiness. Then use A or D followed by N. In a dry run, C enables the simulated
-connection. N advances to the next timestamp in the first (machine) trace and
-sends all unsent events from both traces through that boundary. It does not mean
-one second or one message. Long batches remain scrollable and pauseable.
+Mouse selection and scrolling are supported. Connect with C and wait for readiness
+before A or D. In a dry run, C enables the simulated connection. A terminal of
+120 columns by 36 rows or larger is recommended; narrow windows hide the batch
+sidebar and mouse control row, keeping keyboard shortcuts and tables available.
 
-The supplied experiment spans 66 seconds. Timestamps are refreshed in outgoing
-payload copies; source files are unchanged. TCP completion means a local socket
-write, not confirmation of Liminal processing. See the usage guide for MQTT
-acknowledgment and timing details.
+Source files are never rewritten. Outgoing timestamps use a common new Unix origin
+for each run. TCP completion means local socket write; MQTT QoS 1 completion means
+broker acknowledgment. Neither proves downstream processing.
 
-## Documentation
+## Documentation and development
 
-- [Usage, controls and timing](docs/usage.md)
-- [TCP and mixed MQTT/TCP connections](docs/tcp.md)
+- [Usage and timing](docs/usage.md)
+- [MQTT/TCP configuration](docs/tcp.md)
 - [Trace format](docs/trace_format.md)
 - [Architecture](docs/architecture.md)
-- [Testing and verification](docs/testing.md)
+- [Testing](docs/testing.md)
 - [Shop-floor scenario](docs/shop_floor_scenario.md)
 - [Interactive presentation](docs/shop_floor_scenarios.html)
-
-## Development
 
 ```sh
 python -m unittest discover -v
 ```
 
-The default suite performs offline checks; network tests are explicitly opt-in.
-See [testing](docs/testing.md) for integration and terminal smoke commands.
-
-Application code lives in `liminal_desk_cli/`, tests in `tests/`, sample inputs in
-`examples/`, and documentation in `docs/`. `pyproject.toml` declares metadata and
-dependencies; it is not required for the repository-root module launch.
-
-MQTT and TCP are implemented with the existing curses UI and two-stream replay.
-Textual, arbitrary stream counts, driver selection and alternative manual step
-modes remain future work. File selection currently uses path prompts.
+Application code lives in `liminal_desk_cli/`, tests in `tests/`, examples in
+`examples/`, and documentation in `docs/`. The current launcher loads two traces;
+the driver and stepping logic are independent of shop-floor event names or rates.
+The supplied streams retain their familiar machine/sensor labels. Arbitrary stream
+creation is not part of this release.
 
 See [LICENSE](LICENSE) for licensing terms.
